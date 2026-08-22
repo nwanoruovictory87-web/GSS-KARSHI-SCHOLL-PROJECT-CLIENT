@@ -44,7 +44,7 @@
       width: 100%;
       height: 25px;
       border-radius: 4px;
-      border: none;
+      border-width: 3px;
     }
     #input-tracking-input::placeholder {
       color: black;
@@ -63,6 +63,7 @@
       font-family: sans-serif;
       background: rgb(134, 227, 134);
       border-color: rgb(134, 227, 134);
+      box-shadow: 3px 3px 6px 0px black;
     }
   </style>
   <body>
@@ -76,10 +77,129 @@
       </article>
     </main>
     <script type="module">
-      const socket = io("http://localhost:3000");
-      socket.on("connect", () => {
-        console.log("Connected smoothly via Socket.io!");
-      });
+      const server = "http://localhost:3000";
+      //
+      document
+        .getElementById("input-tracking-track-btw")
+        .addEventListener("click", vaildateTrackingId);
+      //
+      async function vaildateTrackingId() {
+        const inputData = document.getElementById("input-tracking-input");
+        if (inputData.value.trim() === "" || inputData.value.length < 30) {
+          console.log("empty input ux");
+          return (
+            (inputData.style.borderWidth = "3px"),
+            (inputData.style.borderColor = "red")
+          );
+        } else {
+          inputData.style.borderWidth = "3px";
+          inputData.style.borderColor = "black";
+        }
+        try {
+          const validateId = await fetch(
+            `${server}/students/validate/id/${inputData.value}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          );
+          const responds = await validateId.json();
+          console.log(responds);
+          if (responds.ok && responds.isInRecords) {
+            startTracking(inputData.value);
+          }
+        } catch (error) {
+          console.log("error :", error);
+        }
+      }
+      //
+      function startTracking(trackingID) {
+        const socket = io(server);
+        //
+        socket.on("connect", () => {
+          console.log("socket connected ");
+          //
+          socket.on("send-live-location", () => {
+            getGpsLocation(socket);
+          });
+        });
+        function getGpsLocation(socketRef) {
+          // 1. Check if the browser supports the Geolocation API
+          if ("geolocation" in navigator) {
+            // Configuration options for high-accuracy live tracking
+            const options = {
+              enableHighAccuracy: true, // Forces the device to use GPS instead of Wi-Fi/IP routing
+              timeout: 5000, // Maximum time (ms) allowed to return a position
+              maximumAge: 0, // Forces the browser to fetch a fresh position, not a cached one
+            };
+
+            // 2. Start watching the live position
+            const watchId = navigator.geolocation.watchPosition(
+              successCallback,
+              errorCallback,
+              options,
+            );
+          } else {
+            console.error("Geolocation is not supported by this browser.");
+          }
+
+          // Success callback triggers every time the device's location changes
+          function successCallback(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const accuracy = position.coords.accuracy; // Accuracy radius in meters
+            console.log(`Live Location - Lat: ${latitude}, Lon: ${longitude}`);
+            console.log(`Accuracy: ${accuracy} meters`);
+            // Optional: Update your HTML UI elements here
+            //
+            const DATE = new Date();
+            const locationData = {
+              trackingID: trackingID,
+              latitude: latitude,
+              longitude: longitude,
+              accuracy: accuracy,
+              trackingState: 1,
+              watchInfo: {
+                batteryPercent: "0",
+                watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
+                watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+              },
+              locationInfo: {
+                locationAccuracy: 0,
+                lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
+              },
+            };
+            //
+            socketRef.emit("get-live-location", locationData, trackingID);
+          }
+          //
+
+          // Error callback handles permission denials or hardware failures
+          function errorCallback(error) {
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                console.error("User denied the request for Geolocation.");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                console.error(
+                  "Location information is unavailable (GPS signal lost).",
+                );
+                break;
+              case error.TIMEOUT:
+                console.error("The request to get user location timed out.");
+                break;
+              default:
+                console.error("An unknown error occurred.", error.message);
+            }
+          }
+
+          // 3. Optional: Stop tracking whenever you want (e.g., when a user leaves a page)
+          // navigator.geolocation.clearWatch(watchId);
+        }
+      }
     </script>
   </body>
 </html>
