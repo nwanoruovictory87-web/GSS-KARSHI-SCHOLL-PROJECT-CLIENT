@@ -50,7 +50,6 @@
       padding-top: var(--padding-top);
       background-color: var(--pramary-dark-blue);
       border-radius: 6px;
-      display: none;
     }
     #input-tracking-head-text {
       font-size: clamp(16px, 3vw, 20px);
@@ -100,8 +99,9 @@
       padding-top: var(--padding-top);
       background-color: var(--pramary-dark-blue);
       border-radius: 6px;
+      display: none;
     }
-    .panic-btw {
+    #panic-btw {
       padding: 10px;
       border-radius: 6px;
       font-weight: 800;
@@ -114,7 +114,7 @@
       display: block;
       width: 100%;
       height: 15px;
-      background-color: green;
+      background-color: gray;
       margin-bottom: 10px;
       border-radius: 4px;
     }
@@ -129,12 +129,15 @@
         </section>
         <section class="panic-tracking-id-main">
           <span id="state"></span>
-          <button class="panic-btw">S0S</button>
+          <button id="panic-btw">S0S</button>
         </section>
       </article>
     </main>
     <script type="module">
       const server = "http://localhost:3000";
+      //PAGES
+      const inputDOMSection = document.querySelector(".input-tracking-id-main");
+      const panicDOMSection = document.querySelector(".panic-tracking-id-main");
       //
       document
         .getElementById("input-tracking-track-btw")
@@ -165,6 +168,8 @@
           const responds = await validateId.json();
           console.log(responds);
           if (responds.ok && responds.isInRecords) {
+            inputDOMSection.style.display = "none";
+            panicDOMSection.style.display = "block";
             startTracking(inputData.value);
           }
         } catch (error) {
@@ -173,16 +178,49 @@
       }
       //
       function startTracking(trackingID) {
+        const panicBtw = document.getElementById("panic-btw");
+        const watchState = document.getElementById("state");
+        //
+
+        //
         const socket = io(server);
         //
         socket.on("connect", () => {
           console.log("socket connected ");
           //
+          panicBtw.addEventListener("click", () => {
+            getGpsLocation(socket, true);
+          });
+          //
+          setInterval(() => {
+            socket.emit("get-watch-state", trackingID);
+          }, 10000); // requst watch state every 10 sec
+          //
+          socket.on("send-watch-state", (state) => {
+            switch (state) {
+              case 0:
+                watchState.style.backgroundColor = "purple";
+                break;
+              case 1:
+                watchState.style.backgroundColor = "green";
+                break;
+              case 2:
+                watchState.style.backgroundColor = "yellow";
+                break;
+              case 3:
+                watchState.style.backgroundColor = "red";
+                break;
+              default:
+                watchState.style.backgroundColor = "gray";
+                break;
+            }
+          });
+          //
           socket.on("send-live-location", () => {
-            getGpsLocation(socket);
+            getGpsLocation(socket, false);
           });
         });
-        function getGpsLocation(socketRef) {
+        function getGpsLocation(socketRef, shouldPanic) {
           // 1. Check if the browser supports the Geolocation API
           if ("geolocation" in navigator) {
             // Configuration options for high-accuracy live tracking
@@ -217,23 +255,26 @@
               latitude: latitude,
               longitude: longitude,
               accuracy: accuracy,
-              trackingState: 1,
+              trackingState: shouldPanic ? 3 : 1,
               watchInfo: {
                 batteryPercent: "0",
                 watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
                 watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
               },
               locationInfo: {
-                locationAccuracy: 0,
+                locationAccuracy: accuracy,
                 lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
                 lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
               },
             };
             //
-            socketRef.emit("get-live-location", locationData, trackingID);
+            if (shouldPanic) {
+              socketRef.emit("get-panic-call", locationData, trackingID);
+            } else {
+              socketRef.emit("get-live-location", locationData, trackingID);
+            }
           }
           //
-
           // Error callback handles permission denials or hardware failures
           function errorCallback(error) {
             switch (error.code) {
