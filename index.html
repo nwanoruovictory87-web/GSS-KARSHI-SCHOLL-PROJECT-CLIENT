@@ -11,6 +11,18 @@
     <title>Student | Tracker</title>
   </head>
   <style>
+    body {
+      background-color: rgb(26, 24, 58);
+    }
+    :root {
+      --padding-left: 12px;
+      --padding-top: 12px;
+      --padding-right: 12px;
+      --padding-bottom: 12px;
+      --text-color: #ebe6e6;
+      --body-color: rgb(26, 24, 58);
+      --pramary-dark-blue: #08081f;
+    }
     .main {
       width: 100%;
       height: 100vh;
@@ -32,11 +44,19 @@
       justify-content: center;
       align-items: center;
       text-align: center;
+      padding-left: var(--padding-left);
+      padding-right: var(--padding-right);
+      padding-bottom: var(--padding-bottom);
+      padding-top: var(--padding-top);
+      background-color: var(--pramary-dark-blue);
+      border-radius: 6px;
+      display: none;
     }
     #input-tracking-head-text {
       font-size: clamp(16px, 3vw, 20px);
       font-weight: 800;
       font-family: sans-serif;
+      color: var(--text-color);
     }
     #input-tracking-input {
       background-color: rgb(156, 152, 152);
@@ -63,7 +83,40 @@
       font-family: sans-serif;
       background: rgb(134, 227, 134);
       border-color: rgb(134, 227, 134);
-      box-shadow: 3px 3px 6px 0px black;
+      box-shadow: 1px 1px 6px 0px rgb(5, 247, 53);
+      color: black;
+    }
+    /**/
+    .panic-tracking-id-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding-left: var(--padding-left);
+      padding-right: var(--padding-right);
+      padding-bottom: var(--padding-bottom);
+      padding-top: var(--padding-top);
+      background-color: var(--pramary-dark-blue);
+      border-radius: 6px;
+    }
+    .panic-btw {
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: clamp(16px, 3vw, 18px);
+      background-color: rgba(251, 12, 12, 0.961);
+      border-color: red;
+      color: var(--text-color);
+    }
+    #state {
+      display: block;
+      width: 100%;
+      height: 15px;
+      background-color: green;
+      margin-bottom: 10px;
+      border-radius: 4px;
     }
   </style>
   <body>
@@ -73,6 +126,10 @@
           <h2 id="input-tracking-head-text">Enter Tracking ID</h2>
           <input id="input-tracking-input" placeholder="Enter ID..." />
           <button id="input-tracking-track-btw">Start Tracking</button>
+        </section>
+        <section class="panic-tracking-id-main">
+          <span id="state"></span>
+          <button class="panic-btw">S0S</button>
         </section>
       </article>
     </main>
