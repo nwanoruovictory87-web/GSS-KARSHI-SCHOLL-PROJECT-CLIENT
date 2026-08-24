@@ -134,17 +134,28 @@
       </article>
     </main>
     <script type="module">
-      const server = "https://gss-karshi-scholl-project-backend.onrender.com";
+      //"https://gss-karshi-scholl-project-backend.onrender.com"
+      //http://localhost:3000
+      const server = "http://localhost:3000";
       //PAGES
       const inputDOMSection = document.querySelector(".input-tracking-id-main");
       const panicDOMSection = document.querySelector(".panic-tracking-id-main");
+      const inputData = document.getElementById("input-tracking-input");
+      //
       //
       document
         .getElementById("input-tracking-track-btw")
         .addEventListener("click", vaildateTrackingId);
       //
+      let trackingID = null;
+      let isPanicRequstSent = false;
+      //
+      let lastKnownLocation = {
+        latitude: 0,
+        longitude: 0,
+      };
+      //
       async function vaildateTrackingId() {
-        const inputData = document.getElementById("input-tracking-input");
         if (inputData.value.trim() === "" || inputData.value.length < 30) {
           console.log("empty input ux");
           return (
@@ -170,14 +181,14 @@
           if (responds.ok && responds.isInRecords) {
             inputDOMSection.style.display = "none";
             panicDOMSection.style.display = "block";
-            startTracking(inputData.value);
+            trackingID = inputData.value;
           }
         } catch (error) {
           console.log("error :", error);
         }
       }
       //
-      function startTracking(trackingID) {
+      function startTracking() {
         const panicBtw = document.getElementById("panic-btw");
         const watchState = document.getElementById("state");
         //
@@ -189,10 +200,12 @@
           console.log("socket connected ");
           //
           panicBtw.addEventListener("click", () => {
-            getGpsLocation(socket, true);
+            if (!trackingID) return;
+            getGpsLocation(true);
           });
           //
           setInterval(() => {
+            if (!trackingID) return;
             socket.emit("get-watch-state", trackingID);
           }, 10000); // requst watch state every 10 sec
           //
@@ -217,87 +230,140 @@
           });
           //
           socket.on("send-live-location", () => {
-            getGpsLocation(socket, false);
+            getGpsLocation(false);
           });
-        });
-        function getGpsLocation(socketRef, shouldPanic) {
-          // 1. Check if the browser supports the Geolocation API
-          if ("geolocation" in navigator) {
-            // Configuration options for high-accuracy live tracking
-            const options = {
-              enableHighAccuracy: true, // Forces the device to use GPS instead of Wi-Fi/IP routing
-              timeout: 5000, // Maximum time (ms) allowed to return a position
-              maximumAge: 0, // Forces the browser to fetch a fresh position, not a cached one
-            };
+          //
+          socket.on("get-tracking-id-client", (trackingID) => {
+            copyTextToClipboard(trackingID);
+            console.log(trackingID);
+          });
+          //
+          function getGpsLocation(shouldPanic) {
+            // 1. Check if the browser supports the Geolocation API
+            if ("geolocation" in navigator) {
+              // Configuration options for high-accuracy live tracking
+              const options = {
+                enableHighAccuracy: true, // Forces the device to use GPS instead of Wi-Fi/IP routing
+                timeout: 5000, // Maximum time (ms) allowed to return a position
+                maximumAge: 0, // Forces the browser to fetch a fresh position, not a cached one
+              };
 
-            // 2. Start watching the live position
-            const watchId = navigator.geolocation.watchPosition(
-              successCallback,
-              errorCallback,
-              options,
-            );
-          } else {
-            console.error("Geolocation is not supported by this browser.");
-          }
-
-          // Success callback triggers every time the device's location changes
-          function successCallback(position) {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            const accuracy = position.coords.accuracy; // Accuracy radius in meters
-            console.log(`Live Location - Lat: ${latitude}, Lon: ${longitude}`);
-            console.log(`Accuracy: ${accuracy} meters`);
-            // Optional: Update your HTML UI elements here
-            //
-            const DATE = new Date();
-            const locationData = {
-              trackingID: trackingID,
-              latitude: latitude,
-              longitude: longitude,
-              accuracy: accuracy,
-              trackingState: shouldPanic ? 3 : 1,
-              watchInfo: {
-                batteryPercent: "0",
-                watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
-                watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
-              },
-              locationInfo: {
-                locationAccuracy: accuracy,
-                lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
-                lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
-              },
-            };
-            //
-            if (shouldPanic) {
-              socketRef.emit("get-panic-call", locationData, trackingID);
+              // 2. Start watching the live position
+              const watchId = navigator.geolocation.watchPosition(
+                successCallback,
+                errorCallback,
+                options,
+              );
             } else {
-              socketRef.emit("get-live-location", locationData, trackingID);
+              console.error("Geolocation is not supported by this browser.");
             }
+
+            // Success callback triggers every time the device's location changes
+            function successCallback(position) {
+              const latitude = position.coords.latitude;
+              const longitude = position.coords.longitude;
+              const accuracy = position.coords.accuracy; // Accuracy radius in meters
+              console.log(
+                `Live Location - Lat: ${latitude}, Lon: ${longitude}`,
+              );
+              console.log(`Accuracy: ${accuracy} meters`);
+              // Optional: Update your HTML UI elements here
+              //
+              const DATE = new Date();
+              const locationData = {
+                trackingID: trackingID,
+                latitude: latitude,
+                longitude: longitude,
+                accuracy: accuracy,
+                trackingState: shouldPanic ? 3 : 1,
+                watchInfo: {
+                  batteryPercent: "0",
+                  watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
+                  watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                },
+                locationInfo: {
+                  locationAccuracy: accuracy,
+                  lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                  lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
+                },
+              };
+              //
+              if (shouldPanic) {
+                socket.emit("get-panic-call", locationData, trackingID);
+                shouldPanic = false;
+                alert("panic alert sent");
+              } else {
+                socket.emit("get-live-location", locationData, trackingID);
+              }
+            }
+            //
+            // Error callback handles permission denials or hardware failures
+            function errorCallback(error) {
+              const locationData = {
+                trackingID: trackingID,
+                latitude: lastKnownLocation.latitude,
+                longitude: lastKnownLocation.longitude,
+                accuracy: lastKnownLocation.accuracy,
+                trackingState: shouldPanic ? 3 : 1,
+                watchInfo: {
+                  batteryPercent: "0",
+                  watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
+                  watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                },
+                locationInfo: {
+                  locationAccuracy: accuracy,
+                  lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                  lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
+                },
+              };
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  console.error("User denied the request for Geolocation.");
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  console.error(
+                    "Location information is unavailable (GPS signal lost).",
+                  );
+                  if (shouldPanic && lastKnownLocation.latitude != 0) {
+                    socket.emit("get-panic-call", locationData, trackingID);
+                    shouldPanic = false;
+                    alert("panic alert sent");
+                  }
+                  break;
+                case error.TIMEOUT:
+                  console.error("The request to get user location timed out.");
+                  if (shouldPanic && lastKnownLocation.latitude != 0) {
+                    socket.emit("get-panic-call", locationData, trackingID);
+                    shouldPanic = false;
+                    alert("panic alert sent");
+                  }
+                  break;
+                default:
+                  console.error("An unknown error occurred.", error.message);
+                  if (shouldPanic && lastKnownLocation.latitude != 0) {
+                    socket.emit("get-panic-call", locationData, trackingID);
+                    shouldPanic = false;
+                    alert("panic alert sent");
+                  }
+              }
+            }
+
+            // 3. Optional: Stop tracking whenever you want (e.g., when a user leaves a page)
+            // navigator.geolocation.clearWatch(watchId);
           }
           //
-          // Error callback handles permission denials or hardware failures
-          function errorCallback(error) {
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                console.error("User denied the request for Geolocation.");
-                break;
-              case error.POSITION_UNAVAILABLE:
-                console.error(
-                  "Location information is unavailable (GPS signal lost).",
-                );
-                break;
-              case error.TIMEOUT:
-                console.error("The request to get user location timed out.");
-                break;
-              default:
-                console.error("An unknown error occurred.", error.message);
+          function copyTextToClipboard(text) {
+            if (trackingID) return;
+            const userAgreed = confirm(
+              "Would you like to copy the tracking ID to your input section?",
+            );
+            if (userAgreed) {
+              inputData.value = text;
             }
           }
-
-          // 3. Optional: Stop tracking whenever you want (e.g., when a user leaves a page)
-          // navigator.geolocation.clearWatch(watchId);
-        }
+        });
       }
+      startTracking();
     </script>
   </body>
 </html>
