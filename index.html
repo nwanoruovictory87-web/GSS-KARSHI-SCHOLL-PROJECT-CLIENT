@@ -153,7 +153,7 @@
     <script type="module">
       //"https://gss-karshi-scholl-project-backend.onrender.com"
       //http://localhost:3000
-      const server = "http://localhost:3000";
+      const server = "https://gss-karshi-scholl-project-backend.onrender.com";
       //PAGES
       const inputDOMSection = document.querySelector(".input-tracking-id-main");
       const panicDOMSection = document.querySelector(".panic-tracking-id-main");
@@ -214,8 +214,11 @@
         //
         const socket = io(server);
         //
+        let isAlertGoing = false;
         panicBtw.addEventListener("click", () => {
-          if (!trackingID) return;
+          if (!trackingID || isAlertGoing) return;
+          isAlertGoing = true;
+          panicBtw.style.backgroundColor = "blue";
           getGpsLocation(socket, true);
         });
         //
@@ -337,6 +340,8 @@
           if (shouldPanic) {
             socket.emit("get-panic-call", locationData, trackingID);
             shouldPanic = false;
+            isAlertGoing = false;
+
             alert("panic alert sent");
           } else {
             socket.emit("get-live-location", locationData, trackingID);
@@ -374,9 +379,11 @@
               if (shouldPanic && lastKnownLocation.latitude != 0) {
                 socket.emit("get-panic-call", locationData, trackingID);
                 shouldPanic = false;
+                isAlertGoing = false;
                 alert("panic alert sent");
               } else if (shouldPanic) {
                 alert(`panic alert faild: ${error.message}`);
+                isAlertGoing = false;
                 shouldPanic = false;
               }
               break;
@@ -385,9 +392,11 @@
               if (shouldPanic && lastKnownLocation.latitude != 0) {
                 socket.emit("get-panic-call", locationData, trackingID);
                 shouldPanic = false;
+                isAlertGoing = false;
                 alert("panic alert sent");
               } else if (shouldPanic) {
                 alert(`panic alert faild: ${error.message}`);
+                isAlertGoing = false;
                 shouldPanic = false;
               }
               break;
@@ -396,9 +405,13 @@
               if (shouldPanic && lastKnownLocation.latitude != 0) {
                 socket.emit("get-panic-call", locationData, trackingID);
                 shouldPanic = false;
+
+                isAlertGoing = false;
                 alert("panic alert sent");
               } else if (shouldPanic) {
                 alert(`panic alert faild: ${error.message}`);
+
+                isAlertGoing = false;
                 shouldPanic = false;
               }
           }
