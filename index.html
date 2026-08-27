@@ -153,7 +153,8 @@
     <script type="module">
       //"https://gss-karshi-scholl-project-backend.onrender.com"
       //http://localhost:3000
-      const server = "https://gss-karshi-scholl-project-backend.onrender.com";
+      const server = "http://localhost:3000";
+      const beepAlertSound = "./beep.mp3";
       //PAGES
       const inputDOMSection = document.querySelector(".input-tracking-id-main");
       const panicDOMSection = document.querySelector(".panic-tracking-id-main");
@@ -205,6 +206,7 @@
           console.log("error :", error);
         }
       }
+      let isAlertGoing = false;
       //
       function startTracking() {
         const panicBtw = document.getElementById("panic-btw");
@@ -214,11 +216,10 @@
         //
         const socket = io(server);
         //
-        let isAlertGoing = false;
+
         panicBtw.addEventListener("click", () => {
           if (!trackingID || isAlertGoing) return;
           isAlertGoing = true;
-          panicBtw.style.backgroundColor = "blue";
           getGpsLocation(socket, true);
         });
         //
@@ -232,7 +233,7 @@
           setInterval(() => {
             if (!trackingID) return;
             socket.emit("get-watch-state", trackingID);
-          }, 10000); // requst watch state every 10 sec
+          }, 2000); // requst watch state every 2 sec
           //
           socket.on("send-watch-state", (state) => {
             switch (state) {
@@ -260,15 +261,30 @@
             getGpsLocation(socket, false);
           });
           //
-          socket.on("are-you-there-client", () => {
-            if (!trackingID) return;
-            if (!isRespondsRecived) return;
-            isRespondsRecived = false;
-            if (window.confirm("Safty varification click (OK) to verify?")) {
-              isRespondsRecived = true;
-              socket.emit("am-here", trackingID);
-            } else {
-              isRespondsRecived = true;
+          let isRequstPending = false;
+          socket.on("are-you-there-client", async () => {
+            try {
+              if (!trackingID) return;
+              if (!isRespondsRecived) return;
+              isRespondsRecived = false;
+              if (!isRequstPending) {
+                isRequstPending = true;
+                const notificationAlert = new Audio(beepAlertSound);
+                await notificationAlert.play();
+                if (
+                  window.confirm("Safty varification click (OK) to verify?")
+                ) {
+                  isRespondsRecived = true;
+                  isRequstPending = false;
+                  socket.emit("am-here", trackingID);
+                } else {
+                  isRespondsRecived = true;
+                  isRespondsRecived = true;
+                  isRequstPending = false;
+                }
+              }
+            } catch (error) {
+              console.log(error);
             }
           });
           //
@@ -405,12 +421,10 @@
               if (shouldPanic && lastKnownLocation.latitude != 0) {
                 socket.emit("get-panic-call", locationData, trackingID);
                 shouldPanic = false;
-
                 isAlertGoing = false;
                 alert("panic alert sent");
               } else if (shouldPanic) {
                 alert(`panic alert faild: ${error.message}`);
-
                 isAlertGoing = false;
                 shouldPanic = false;
               }
