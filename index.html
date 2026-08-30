@@ -169,6 +169,26 @@
       let isPanicRequstSent = false;
       let isRespondsRecived = true;
       let isNotificationAlert = false;
+      let batteryPercent = 0;
+      //
+      if ("getBattery" in navigator) {
+        // API is supported
+        navigator.getBattery().then((battery) => {
+          // Battery level is a value between 0.0 and 1.0
+          const percentage = battery.level * 100;
+          batteryPercent = percentage;
+          console.log(`Battery percentage: ${percentage}%`);
+
+          // Listen for changes in battery level
+          battery.addEventListener("levelchange", () => {
+            const percentage = battery.level * 100;
+            batteryPercent = percentage;
+            console.log(`Battery percentage updated: ${battery.level * 100}%`);
+          });
+        });
+      } else {
+        console.log("Battery Status API is not supported on this browser.");
+      }
       //
       let lastKnownLocation = {
         latitude: 0,
@@ -342,13 +362,13 @@
               accuracy: accuracy,
               trackingState: shouldPanic ? 3 : 1,
               watchInfo: {
-                batteryPercent: "0",
+                batteryPercent: `${batteryPercent}`,
                 watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
-                watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                watchDate: `${DATE.getDate() >= 10 ? DATE.getDate() : `0${DATE.getDate()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
               },
               locationInfo: {
                 locationAccuracy: accuracy,
-                lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                lastTransmistedDate: `${DATE.getDate() >= 10 ? DATE.getDate() : `0${DATE.getDate()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
                 lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
               },
             };
@@ -381,11 +401,11 @@
               watchInfo: {
                 batteryPercent: "0",
                 watchTime: `${DATE.getHours() >= 10 ? DATE.getHours() : `0${DATE.getHours()}`}:${DATE.getMinutes() >= 10 ? DATE.getMinutes() : `0${DATE.getMinutes()}`}`,
-                watchDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                watchDate: `${DATE.getDate() >= 10 ? DATE.getDate() : `0${DATE.getDate()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
               },
               locationInfo: {
                 locationAccuracy: 0,
-                lastTransmistedDate: `${DATE.getDay() >= 10 ? DATE.getDay() : `0${DATE.getDay()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
+                lastTransmistedDate: `${DATE.getDate() >= 10 ? DATE.getDate() : `0${DATE.getDate()}`}/${DATE.getMonth() + 1 >= 10 ? DATE.getMonth() + 1 : `0${DATE.getMonth() + 1}`}/${DATE.getFullYear()}`,
                 lastThreeKnownLocation: [{ latitude: 0, longitude: 0 }],
               },
             };
